@@ -78,6 +78,30 @@ class MultiTaskNet(nn.Module):
         #********************************************************
         #******************* YOUR CODE HERE *********************
         #********************************************************
+        self.embedding_sharing = embedding_sharing
+        self.sparse = sparse
+
+        self.U = ScaledEmbedding(num_embeddings=num_users, embedding_dim=embedding_dim, sparse=sparse)
+        self.Q = ScaledEmbedding(num_embeddings=num_items, embedding_dim=embedding_dim, sparse=sparse)
+        self.A = ZeroEmbedding(num_embeddings=num_users, embedding_dim=1)
+        self.B = ZeroEmbedding(num_embeddings=num_items, embedding_dim=1)
+
+        self.U_reg, self.Q_reg = None, None
+
+        if embedding_sharing:
+            self.U_reg = self.U
+            self.Q_reg = self.Q
+        else:
+            self.U_reg = ScaledEmbedding(num_embeddings=num_users, embedding_dim=embedding_dim, sparse=sparse)
+            self.Q_reg = ScaledEmbedding(num_embeddings=num_items, embedding_dim=embedding_dim, sparse=sparse)
+
+        self.layers = nn.Sequential()
+        for i, _ in enumerate(layer_sizes):
+            if i == len(layer_sizes) - 1:
+                self.layers.add_module("linear_" + str(i), nn.Linear(layer_sizes[i], 1))
+            else:
+                self.layers.add_module("linear_" + str(i), nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
+                self.layers.add_module("relu_" + str(i), nn.ReLU())
 
 
         #********************************************************
@@ -107,7 +131,19 @@ class MultiTaskNet(nn.Module):
         #********************************************************
         #******************* YOUR CODE HERE *********************
         #********************************************************
+        U = self.U(user_ids)
+        Q = self.Q(item_ids)
+        A = torch.squeeze(self.A(user_ids), dim=-1)
+        B = torch.squeeze(self.B(user_ids), dim=-1)
+        p_ij = torch.sum(U * Q, dim=-1)
+        if self.sparse:
+            p_ij = torch.diag(p_ij)
+        predictions = p_ij + A + B
 
+        U = self.U_reg(user_ids)
+        Q = self.Q_reg(item_ids)
+        x = torch.cat((U, Q, U * Q), dim=-1)
+        score = torch.squeeze(self.layers(x), dim=-1)
 
         #********************************************************
         #********************************************************
