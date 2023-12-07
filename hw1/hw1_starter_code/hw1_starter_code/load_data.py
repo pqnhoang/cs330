@@ -134,7 +134,33 @@ class DataGenerator(IterableDataset):
 
         #############################
         #### YOUR CODE GOES HERE ####
-        pass
+        one_hot_label = np.eye(self.num_classes, dtype=np.float32)
+
+        N = self.num_classes
+        K = self.num_samples_per_class - 1
+
+        folders = random.sample(self.folders, N)
+        
+        support_set_image_labels = get_images(folders, one_hot_label, nb_samples=K, shuffle=False)
+        query_set_image_labels = get_images(folders, one_hot_label, nb_samples=1, shuffle=True)
+
+        image_labels_set = support_set_image_labels + query_set_image_labels
+
+
+        tmp_images = []
+        tmp_labels = []
+
+        for label, image_path in image_labels_set:
+            tmp_images.append(self.image_file_to_array(image_path, self.dim_input))
+            tmp_labels.append(label)
+        
+        images = np.asarray(tmp_images).reshape((K+1, N, 784))
+        labels = np.asarray(tmp_labels).reshape((K + 1, N,N))
+
+        images = torch.as_tensor(images, device=self.device)
+        labels = torch.as_tensor(labels, device=self.device)
+
+        return images, labels
         #############################
 
     def __iter__(self):
