@@ -46,7 +46,23 @@ class MANN(nn.Module):
         """
         #############################
         #### YOUR CODE GOES HERE ####
-        pass
+        batch_size = input_images.shape[0]
+        support_set_images = input_images[:, :-1, :, :] # [B, K, N, 784]
+        support_set_labels = input_labels[:, :-1, :, :] # [B, K, N, N]
+        query_set_images = input_images[:, -1:, :, :] # [B, 1, N, 784]
+        
+        query_set_labels = torch.zeros_like(input_labels[:, -1:, :, :]) # [B, 1, N, N]
+
+        support_input = torch.cat((support_set_images, support_set_labels), dim=-1)  # [B, K+1, N, 784 + N]
+        query_input = torch.cat((query_set_images, query_set_labels), dim=-1)  # [B, 1, N, 784 + N]
+
+        input = torch.cat((support_input, query_input), dim=1)
+        input = torch.reshape(input, (batch_size, -1, 784 + self.num_classes))
+
+        input, _ = self.layer1(input)  # [B, K * N, size of the model]
+        input, _ = self.layer2(input)  # [B, K * N, N]
+        input = torch.reshape(input, shape=(batch_size, -1,  self.num_classes, self.num_classes))
+        return input
         #############################
 
     def loss_function(self, preds, labels):
@@ -62,7 +78,16 @@ class MANN(nn.Module):
         """
         #############################
         #### YOUR CODE GOES HERE ####
-        pass
+        preds = preds[:, -1, :, :]  # [B;K+1;N;N]
+        preds = torch.reshape(preds, shape=(-1, self.num_classes))
+
+        # input the [B;K+1;N;N] labels
+        labels = labels[:, -1, :, :]
+        labels = torch.argmax(labels, dim=-1)  # [B, N]
+        labels = torch.reshape(labels, shape=(-1,))
+        # loss is computed between the query set predictions and the ground truth labels
+        loss = F.cross_entropy(preds, labels)
+        return loss
         #############################
 
 
