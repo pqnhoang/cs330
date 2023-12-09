@@ -11,6 +11,7 @@ from load_data import DataGenerator
 from google_drive_downloader import GoogleDriveDownloader as gdd
 from torch.utils.tensorboard import SummaryWriter
 import torchvision
+import torch.multiprocessing as mp
 
 
 def initialize_weights(model):
@@ -201,6 +202,7 @@ def main(config):
 
 
 if __name__ == "__main__":
+    mp.set_start_method('spawn')
     parser = argparse.ArgumentParser()
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_shot", type=int, default=1)
