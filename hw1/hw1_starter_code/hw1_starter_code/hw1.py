@@ -10,8 +10,7 @@ from torch import nn, Tensor
 from load_data import DataGenerator
 from google_drive_downloader import GoogleDriveDownloader as gdd
 from torch.utils.tensorboard import SummaryWriter
-import torchvision
-import torch.multiprocessing as mp
+# import torchvision
 
 
 def initialize_weights(model):
@@ -47,19 +46,22 @@ class MANN(nn.Module):
         """
         #############################
         #### YOUR CODE GOES HERE ####
-        batch_size = input_images.shape[0]
-        support_set_images = input_images[:, :-1, :, :] # [B, K, N, 784]
-        support_set_labels = input_labels[:, :-1, :, :] # [B, K, N, N]
-        query_set_images = input_images[:, -1:, :, :] # [B, 1, N, 784]
-        
-        query_set_labels = torch.zeros_like(input_labels[:, -1:, :, :]) # [B, 1, N, N]
+        batch_size= input_images.shape[0]
+        support_set_image = input_images[:, :-1, :, :]  # [B, K, N, 784] flattened images
+        support_set_labels = input_labels[:, :-1, :, :]  # [B, K, N, N] ground truth labels
+        query_set_images = input_images[:, -1:, :, :]   # [B, 1, N, 784] flattened images
+        # Pass zeros, not the ground truth labels for the final N examples
+        query_set_labels = torch.zeros_like(input_labels[:, -1:, :, :])  # [B, 1, N, N] labels
 
-        support_input = torch.cat((support_set_images, support_set_labels), dim=-1)  # [B, K+1, N, 784 + N]
+        # Each set of labels and images are concatenated together
+        support_input = torch.cat((support_set_image, support_set_labels), dim=-1)  # [B, K+1, N, 784 + N]
         query_input = torch.cat((query_set_images, query_set_labels), dim=-1)  # [B, 1, N, 784 + N]
 
-        input = torch.cat((support_input, query_input), dim=1)
-        input = torch.reshape(input, (batch_size, -1, 784 + self.num_classes))
+        input = torch.cat((support_input, query_input), dim=1)  # [B, K + 1, N, 784 + N]
+        input = torch.reshape(input,
+                              (batch_size, -1, 784 + self.num_classes))  # [B, (K+1) * N, 784 + N]
 
+        # the Nx K support set examples are sequentially passed through the network
         input, _ = self.layer1(input)  # [B, K * N, size of the model]
         input, _ = self.layer2(input)  # [B, K * N, N]
         input = torch.reshape(input, shape=(batch_size, -1,  self.num_classes, self.num_classes))
@@ -79,13 +81,23 @@ class MANN(nn.Module):
         """
         #############################
         #### YOUR CODE GOES HERE ####
-        preds = preds[:, -1, :, :]  # [B;K+1;N;N]
+        # 2. Fill in the function called loss function in the MANN class which takes as
+        preds = preds[:, -1, :, :]  # [B;N;N] (128,2,2)
+        # print("preds  : ",preds.shape)
+        # preds = torch.argmax(labels,dim=-1)
         preds = torch.reshape(preds, shape=(-1, self.num_classes))
-
+        # print('pred : ',preds.shape)
+        preds = torch.as_tensor(preds,dtype=float)
+        # print('pred : ',preds.shape)
+        # print('pred : ',preds.shape)
         # input the [B;K+1;N;N] labels
-        labels = labels[:, -1, :, :]
-        labels = torch.argmax(labels, dim=-1)  # [B, N]
-        labels = torch.reshape(labels, shape=(-1,))
+        labels = labels[:, -1, :, :] #(B,N,N)
+        # labels = torch.argmax(labels, dim=-1)  # [B, N]
+        labels = torch.reshape(labels, shape=(-1,self.num_classes))
+        labels = torch.as_tensor(labels,dtype=float)
+        
+        # print('label : ',labels.shape)
+        # print("label : ",labels.shape)
         # loss is computed between the query set predictions and the ground truth labels
         loss = F.cross_entropy(preds, labels)
         return loss
@@ -170,6 +182,9 @@ def main(config):
         ## Sample Batch
         t0 = time.time()
         i, l = next(train_loader)
+        # print(i,l)
+        # print("i : ",i[0].shape)
+        # print("l : ",l[0].shape)
         i, l = i.to(device), l.to(device)
         t1 = time.time()
 
@@ -192,6 +207,8 @@ def main(config):
             )
             pred = torch.argmax(pred[:, -1, :, :], axis=2)
             l = torch.argmax(l[:, -1, :, :], axis=2)
+            # print(pred)
+            # print(l)
             acc = pred.eq(l).sum().item() / (config.meta_batch_size * config.num_classes)
             print("Test Accuracy", acc)
             writer.add_scalar("Accuracy/test", acc, step)
@@ -202,7 +219,6 @@ def main(config):
 
 
 if __name__ == "__main__":
-    mp.set_start_method('spawn')
     parser = argparse.ArgumentParser()
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_shot", type=int, default=1)
@@ -212,6 +228,6 @@ if __name__ == "__main__":
     parser.add_argument("--hidden_dim", type=int, default=128)
     parser.add_argument("--random_seed", type=int, default=123)
     parser.add_argument("--learning_rate", type=float, default=1e-3)
-    parser.add_argument("--train_steps", type=int, default=25000)
+    parser.add_argument("--train_steps", type=int, default=5000)
     parser.add_argument("--image_caching", type=bool, default=True)
     main(parser.parse_args())
