@@ -150,7 +150,7 @@ def main(config):
             train_iterable,
             batch_size=config.meta_batch_size,
             num_workers=config.num_workers,
-            pin_memory=True,
+            pin_memory=False,
         )
     )
 
@@ -166,7 +166,7 @@ def main(config):
             test_iterable,
             batch_size=config.meta_batch_size,
             num_workers=config.num_workers,
-            pin_memory=True,
+            pin_memory=False,
         )
     )
 
