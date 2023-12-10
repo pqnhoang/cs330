@@ -142,7 +142,7 @@ class DataGenerator(IterableDataset):
         folders = random.sample(self.folders, N)
         
         support_set_image_labels = get_images(folders, one_hot_label, nb_samples=K, shuffle=False)
-        query_set_image_labels = get_images(folders, one_hot_label, nb_samples=1, shuffle=True)
+        query_set_image_labels = get_images(folders, one_hot_label, nb_samples=1, shuffle=False)
 
         image_labels_set = support_set_image_labels + query_set_image_labels
 
