@@ -55,7 +55,7 @@ class MANN(nn.Module):
         query_set_labels = torch.zeros_like(input_labels[:, -1:, :, :])  # [B, 1, N, N] labels
 
         # Each set of labels and images are concatenated together
-        support_input = torch.cat((support_set_image, support_set_labels), dim=-1)  # [B, K+1, N, 784 + N]
+        support_input = torch.cat((support_set_image, support_set_labels), dim=-1)  # [B, K, N, 784 + N]
         query_input = torch.cat((query_set_images, query_set_labels), dim=-1)  # [B, 1, N, 784 + N]
 
         input = torch.cat((support_input, query_input), dim=1)  # [B, K + 1, N, 784 + N]
