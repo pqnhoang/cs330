@@ -126,6 +126,39 @@ class ProtoNet:
             # Use util.score to compute accuracies.
             # Make sure to populate loss_batch, accuracy_support_batch, and
             # accuracy_query_batch.
+            # number of classes in a taks
+            num_ways = (torch.max(labels_support) + 1).item()
+
+            # y_s mapping from support images to features
+            y_s = self._network(images_support)  # (ways * support, features)
+            # Number of features in the support feature space
+            num_features = y_s.shape[-1]
+
+            # y_q mapping from support images to features
+            y_q = self._network(images_query)  # (num_query, features)
+            # c_n Vector of prototypes of each num_ways classes, is defined as the mean of the feature vectors
+            # of that class's support images.
+            c_n = torch.reshape(y_s, shape=(num_ways, -1, num_features))
+            c_n = torch.mean(c_n, dim=1)  # (num_ways, num_features)
+            c_n = torch.unsqueeze(c_n, dim=0)  # (1, num_ways, num_features)
+
+            y_q = torch.unsqueeze(y_q, dim=1)  # (num_query, 1, features)
+            # To classify an image y_q, we compute the squared Euclidean distance between y_q and each prototype.
+            distance_query = -torch.sum((y_q - c_n) ** 2, dim=-1)  # (num_query, num_ways)
+
+            # F.cross_entropy to compute classification losses.
+            loss = F.cross_entropy(distance_query, labels_query)
+            loss_batch.append(loss)
+
+            with torch.no_grad():
+                # util.score to compute accuracies
+                accuracy_query = util.score(distance_query, labels_query)
+                y_s = torch.unsqueeze(y_s, dim=1)  # (num_support, 1, features)
+                distance_support = -torch.sum((y_s - c_n) ** 2, dim=-1)  # (num_support, num_ways)
+                accuracy_support = util.score(distance_support, labels_support)
+
+                accuracy_support_batch.append(accuracy_support)
+                accuracy_query_batch.append(accuracy_query)
 
             # ********************************************************
             # ******************* YOUR CODE HERE *********************
