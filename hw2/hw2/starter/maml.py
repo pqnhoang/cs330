@@ -235,6 +235,15 @@ class MAML:
             # Use util.score to compute accuracies.
             # Make sure to populate outer_loss_batch, accuracies_support_batch,
             # and accuracy_query_batch.
+            adapted_parameters, accuracy_support = self._inner_loop(images_support, labels_support, train=train)
+            y_query = self._forward(images_query, adapted_parameters)
+            # Compute classification losses
+            outer_loss = F.cross_entropy(y_query, labels_query)
+            outer_loss_batch.append(outer_loss)
+
+            accuracies_support_batch.append(accuracy_support)
+            accuracy_query = util.score(y_query, labels_query)
+            accuracy_query_batch.append(accuracy_query)
 
             # ********************************************************
             # ******************* YOUR CODE HERE *********************
