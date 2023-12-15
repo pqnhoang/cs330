@@ -180,6 +180,21 @@ class MAML:
         # Use F.cross_entropy to compute classification losses.
         # Use util.score to compute accuracies.
 
+        for _ in range(self._num_inner_steps):
+            # Forward propagation to obtain y_support
+            y_support = self._forward(images, parameters)
+            # Compute classification losses
+            inner_loss = F.cross_entropy(y_support, labels)
+
+            # Compute accuracies
+            accuracies.append(util.score(y_support, labels))
+
+            grads_list = autograd.grad(inner_loss, parameters.values(), create_graph=train)
+
+            for (i, n) in enumerate(parameters.keys()):
+                parameters[n] = parameters[n] - self._inner_lrs[n] * grads_list[i]
+
+
         # ********************************************************
         # ******************* YOUR CODE HERE *********************
         # ********************************************************
